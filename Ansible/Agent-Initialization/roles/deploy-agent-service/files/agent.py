@@ -154,11 +154,6 @@ class Agent:
             try:
                 jmessage = json.loads(message.payload.decode('utf8'))
 
-                # If we are not the target agent we do not need to continue processing
-                # if jmessage['agent'] not in self.dns_associations:
-                #     logger.info(f"Recieved message for {jmessage['agent']}: Skipping check at URL {jmessage['downloadURL']}")
-                #     return
-
                 # Reverse DNS lookup did not work with PiHole.
                 # Need to do a forward lookup each time there is a new check that comes in.
                 # We're not worried about performance at the moment.
@@ -283,29 +278,6 @@ class Agent:
                 res = -1
         # There is a better way.
         return res
-
-
-    # def get_dns_associations(self):
-    #     """
-    #         Do a DNS lookup on the IP addresses that are on this host
-    #         and see if they are associated with any known domains from the DNS server.
-    #     """
-
-    #     import dns.resolver
-    #     import string
-
-    #     # Get the IP addresses that are associated with this host.
-    #     ip_address = self.get_ip_addresses()
-    #     logger.error(ip_address)
-
-
-    #     my_resolver = dns.resolver.Resolver()
-    #     my_resolver.nameservers = ['dns-server']  #set name servers seperated by comma
-    #     ipaddy = ip_address
-
-    #     results = my_resolver.resolve(ipaddy, "A")[0]
-
-    #     return results
 
     def get_ip_addresses(self):
         """

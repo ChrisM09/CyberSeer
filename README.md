@@ -15,11 +15,12 @@ This is an agent-based automation scoring engine used for cybersecurity educatio
 
 
 # TLDR Installation Steps
-1. Update `inventory.yaml` to point to machines on your infrastructure. Update the variables as needed to access and deploy on your machines.
-2. Run `./setup.sh` to deploy the entire scoring engine.
-3. Go to `~/Automation/` and update `checks.csv`. Update to the desired checks and ensure the API and checks repo IP are accurate (otherwise, the agents won't get the right checks and won't publish anything).
-4. Run `./upload-checks.sh`. Await for the Dynamicbeat PID to show up.
-5. Navigate to `http://<API-Agent>:8081/admin`. You'll enter the password. Default `ScoreStack`. In here, you'll create the DNS entries for the various agents deployed in this scoring engine.
+1. Update the `~/Ansible/Agent-Initialization/roles/deploy-agent-service/files/start-agent.sh` file with the correct username on your machine. 
+2. Update `inventory.yaml` to point to machines on your infrastructure. Update the variables as needed to access and deploy on your machines.
+3. Run `./setup.sh` to deploy the entire scoring engine.
+4. Go to `~/Automation/` and update `checks.csv`. Update to the desired checks and ensure the API and checks repo IP are accurate (otherwise, the agents won't get the right checks and won't publish anything).
+5. Run `./upload-checks.sh`. Await for the Dynamicbeat PID to show up.
+6. Navigate to `http://<API-Agent>:8081/admin`. You'll enter the password. Default `ScoreStack`. In here, you'll create the DNS entries for the various agents deployed in this scoring engine.
    1. For single-team deployments, the expected DNS requests are `1-X` where X is the name of the `target-agent` defined in this .csv. Have this resolve to the IP of the desired endpoint.
 
 

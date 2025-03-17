@@ -1,0 +1,17 @@
+---
+  - name: Copy Scoring Stack File
+    copy:
+      src: "{{ playbook_dir }}/docker/dockerstack.yml"
+      dest: /tmp/dockerstack.yml
+
+  - name: Install Jsondiff Pip Package
+    pip:
+      name:
+        - jsondiff
+
+  - name: Deploy Scoring Stack
+    docker_stack:
+      name: scorestack
+      state: present
+      compose:
+        - /tmp/dockerstack.yml

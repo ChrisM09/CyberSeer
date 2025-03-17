@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  checks-repo:
+    image: localhost:5000/checks-repo:latest
+    ports:
+      - "8080:80/tcp"
+    deploy:
+      placement:
+        constraints:
+          - node.role == worker
+
+  mqtt-server:
+    image: localhost:5000/mqtt-server:latest
+    ports:
+      - "1883:1883/tcp"
+      - "9001:9001/tcp"
+    deploy:
+      placement:
+        constraints:
+          - node.role == worker
+
+  dns-server:
+    image: localhost:5000/dns-server:latest
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+      - "8081:80/tcp"
+    volumes:
+      - pihole_data2:/etc/pihole
+      - dnsmasq_data:/etc/dnsmasq.d
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+  api-agent:
+    image: localhost:5000/api-agent:latest
+    ports:
+      - "5000:5000/tcp"
+    deploy:
+      placement:
+        constraints:
+          - node.role == worker
+
+volumes:
+  pihole_data2:
+  dnsmasq_data:

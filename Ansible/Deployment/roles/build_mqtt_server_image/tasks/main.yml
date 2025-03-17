@@ -1,0 +1,34 @@
+---
+  - name: Copy MQTT Server Files
+    copy:
+      src: "{{ playbook_dir }}/docker/mqtt-server/"
+      dest: /tmp/mqtt-server/
+
+  - name: Remove MQTT Server Tag
+    docker_image:
+      name: localhost:5000/mqtt-server
+      tag: latest
+      state: absent
+    ignore_errors: true
+
+  - name: Remove MQTT Server Image
+    docker_image:
+      name: mqtt-server
+      tag: latest
+      state: absent
+    ignore_errors: true
+
+  - name: Build MQTT Server Image
+    docker_image:
+      name: mqtt-server:latest
+      build:
+        path: /tmp/mqtt-server
+      source: build
+
+  - name: Retag MQTT Server Image
+    docker_image:
+      name: mqtt-server:latest
+      repository: localhost:5000/mqtt-server
+      tag: latest
+      push: false
+      source: local

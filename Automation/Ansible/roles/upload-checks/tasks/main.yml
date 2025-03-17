@@ -1,0 +1,18 @@
+---
+  - name: Ensure the target destination is present
+    ansible.builtin.file:
+      path: "{{ target_project_directory }}/checks"
+      state: directory
+      mode: '0755'
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+
+  - name: Copy the checks to the target destination
+    copy:
+      src: output-checks/
+      dest: "{{ target_project_directory }}/checks"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0755'
+
+  

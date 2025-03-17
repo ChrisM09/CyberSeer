@@ -1,0 +1,12 @@
+{
+    "mqtt_broker": "{{ mqtt_broker }}",
+    "mqtt_port" : "1883",
+    "message_type_refresh" : "refresh",
+    "message_type_check": "check",
+    "mqtt_sub_topic_list": ["checks", "refresh"],
+    "check_topic_num": 0,
+    "refresh_topic_num": 1,
+    "mqtt_pub_topic_list": ["results"],
+    "pub_topic_num": 0,
+    "dns_server": "{{ dns_server }}"
+}

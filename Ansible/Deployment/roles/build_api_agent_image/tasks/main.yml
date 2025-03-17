@@ -1,0 +1,34 @@
+---
+  - name: Copy API Agent Files
+    copy:
+      src: "{{ playbook_dir }}/docker/api-agent/"
+      dest: /tmp/api-agent/
+
+  - name: Remove API Agent Tag
+    docker_image:
+      name: localhost:5000/api-agent
+      tag: latest
+      state: absent
+    ignore_errors: true
+
+  - name: Remove API Agent Image
+    docker_image:
+      name: api-agent
+      tag: latest
+      state: absent
+    ignore_errors: true
+
+  - name: Build API Agent Image
+    docker_image:
+      name: api-agent:latest
+      build:
+        path: /tmp/api-agent
+      source: build
+
+  - name: Retag API Agent Image
+    docker_image:
+      name: api-agent:latest
+      repository: localhost:5000/api-agent
+      tag: latest
+      push: false
+      source: local

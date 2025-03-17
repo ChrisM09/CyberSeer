@@ -1,0 +1,4 @@
+---
+  - name: Clear Scores
+    shell:
+      for i in "/check*" "/attrib*" "/result*"; do curl -kXDELETE -u elastic:changeme https://localhost:9200$i && echo $i; done

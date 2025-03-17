@@ -1,0 +1,31 @@
+---
+  - name: Copy the agent python file
+    ansible.builtin.copy:
+      src: agent.py
+      dest: "{{ target_project_directory }}/"
+
+  - name: Create the agent_config directory
+    ansible.builtin.file:
+      path: "{{ target_project_directory }}/agent_config"
+      state: directory
+
+  - name: Copy the agent_config directory template
+    ansible.builtin.template:
+      src: agent_config.json.j2
+      dest: "{{ target_project_directory }}/agent_config/agent_config.json"
+
+  - name: Copy the agent run script
+    ansible.builtin.copy:
+      src: start-agent.sh
+      dest: "{{ target_project_directory }}/"
+      mode: 700
+
+  - name: Copy the agent run service
+    ansible.builtin.template:
+      src: start-agent.service
+      dest: /etc/systemd/system/
+
+  - name: Enable and start the agent run service
+    ansible.builtin.shell: | 
+      systemctl enable start-agent.service
+      systemctl start start-agent.service

@@ -1,0 +1,5 @@
+---
+  - name: Init Docker Swarm Manager
+    docker_swarm:
+      state: present
+      advertise_addr: "{{ ansible_ssh_host }}"

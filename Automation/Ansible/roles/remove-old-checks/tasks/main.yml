@@ -1,0 +1,6 @@
+---
+  - name: Remove old checks
+    file:
+      state: absent
+      path: "{{ target_project_directory }}/checks/"
+      

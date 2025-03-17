@@ -1,0 +1,36 @@
+---
+  - name: Copy DNS Server Files
+    copy:
+      src: "{{ playbook_dir }}/docker/dns-server/"
+      dest: /tmp/dns-server/
+
+  - name: Remove DNS Server Tag
+    docker_image:
+      name: localhost:5000/dns-server
+      tag: latest
+      state: absent
+    ignore_errors: true
+
+  - name: Remove DNS Server Image
+    docker_image:
+      name: dns-server
+      tag: latest
+      state: absent
+    ignore_errors: true
+
+  - name: Build DNS Server Image
+    docker_image:
+      name: dns-server:latest
+      build:
+        path: /tmp/dns-server
+        args:
+          PASSWORD: "{{ dns_server_password }}"
+      source: build
+
+  - name: Retag DNS Server Image
+    docker_image:
+      name: dns-server:latest
+      repository: localhost:5000/dns-server
+      tag: latest
+      push: false
+      source: local

@@ -1,0 +1,13 @@
+[Unit]
+Description=Start Agent Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{ target_project_directory }}/start-agent.sh
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target
+

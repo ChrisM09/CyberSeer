@@ -1,0 +1,34 @@
+---
+  - name: Copy Checks Repo Files
+    copy:
+      src: "{{ playbook_dir }}/docker/checks-repo/"
+      dest: /tmp/checks-repo/
+
+  - name: Remove Checks Repo Tag
+    docker_image:
+      name: localhost:5000/checks-repo
+      tag: latest
+      state: absent
+    ignore_errors: true
+
+  - name: Remove Checks Repo Image
+    docker_image:
+      name: checks-repo
+      tag: latest
+      state: absent
+    ignore_errors: true
+
+  - name: Build Checks Repo Image
+    docker_image:
+      name: checks-repo:latest
+      build:
+        path: /tmp/checks-repo
+      source: build
+
+  - name: Retag Checks Repo Image
+    docker_image:
+      name: checks-repo:latest
+      repository: localhost:5000/checks-repo
+      tag: latest
+      push: false
+      source: local

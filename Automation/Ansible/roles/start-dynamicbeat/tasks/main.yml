@@ -1,0 +1,13 @@
+---
+  - name: Start Dynamicbeat in the background
+    shell:
+      "nohup {{ target_project_directory }}/dynamicbeat run > {{ target_project_directory }}/dynamicbeat.log 2>&1 &"
+
+  - name: Check if Dynamicbeat is running
+    ansible.builtin.command: pgrep -f "dynamicbeat run"
+    register: dynamicbeat_status
+    failed_when: dynamicbeat_status.rc != 0
+
+  - name: Display Dynamicbeat status
+    ansible.builtin.debug:
+      msg: "Dynamicbeat is running with PID(s): {{ dynamicbeat_status.stdout_lines }}"

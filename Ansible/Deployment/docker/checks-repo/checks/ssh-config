@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+
+import os
+import subprocess
+import sys
+import re
+
+def check_ssh_binary():
+    if not os.path.isfile('/usr/bin/ssh'):
+        print("ssh binary is not installed.")
+        sys.exit(1)
+
+def check_ssh_service():
+    result = subprocess.run(['systemctl', 'is-active', '--quiet', 'ssh'], capture_output=True)
+    if result.returncode != 0:
+        print("ssh service is not running.")
+        sys.exit(1)
+
+def check_config_file():
+    with open('/etc/ssh/sshd_config', 'r') as f:
+        config = f.read()
+    
+    # Function to check if a line is commented
+    def is_commented(line):
+        return re.match(r'^\s*#', line)
+
+    # Function to find specific setting values
+    def find_setting(setting):
+        pattern = re.compile(r'^\s*' + re.escape(setting) + r'\s+(.*)', re.MULTILINE)
+        matches = pattern.findall(config)
+        return [match.split('#')[0].strip() for match in matches if not is_commented(match)]
+    
+    # Function to find specific setting values
+    def find_raw_setting(setting):
+        pattern = re.compile(r'^\s*#*' + re.escape(setting) + r'\s+(.*)', re.MULTILINE)
+        matches = pattern.findall(config)
+        return matches
+
+    # Check logging
+    log_level = find_setting('LogLevel')
+    if len(log_level) != 0 and not ('INFO' in log_level or 'DEBUG' in log_level):
+        print("Logging is not set to INFO or DEBUG.")
+        sys.exit(1)
+    
+    # Check root login
+    permit_root_login = find_setting('PermitRootLogin')
+    if len(permit_root_login) != 0 and  'no' not in permit_root_login:
+        print("Root login is permitted in the config file.")
+        sys.exit(1)
+        
+    # Check max auth tries
+    max_auth_tries = find_setting('MaxAuthTries')
+    if max_auth_tries and int(max_auth_tries[0]) >= 6:
+        print("MaxAuthTries is 6 or more in the config file.")
+        sys.exit(1)
+    
+    # Check public key authentication
+    public_key_auth = find_setting('PubkeyAuthentication')
+    if len(public_key_auth) != 0 and 'yes' not in public_key_auth:
+        print("Public key authentication is not enabled in the config file.")
+        sys.exit(1)
+        
+    # Check password authentication
+    password_auth_raw = find_raw_setting('PasswordAuthentication')
+    password_auth = find_raw_setting('#PasswordAuthentication')
+    if len(password_auth) != 0 or 'yes' in password_auth_raw:
+        print("Password authentication is not disabled in the config file.")
+        sys.exit(1)
+    
+    # Check permit empty passwords
+    permit_empty_password = find_setting('PermitEmptyPasswords')
+    if len(permit_empty_password) != 0 and 'yes' in find_setting('PermitEmptyPasswords'):
+        print("PermitEmptyPasswords is enabled in the config file.")
+        sys.exit(1)
+    
+    # Check X11 forwarding
+    x11_forwarding_raw = find_raw_setting('X11Forwarding')
+    x11_forwarding = find_raw_setting('#X11Forwarding')
+    if len(x11_forwarding) != 0 or 'yes' in x11_forwarding_raw:
+        print("X11Forwarding is enabled in the config file.")
+        sys.exit(1)
+    
+    # Check authorized keys
+    authorized_keys_files = find_setting('AuthorizedKeysFile')
+    if len(authorized_keys_files) != 0 and len(authorized_keys_files[0].split(' ')) >= 2:
+        print("Warning: There are more than 1 authorized keys in the config file.")
+        sys.exit(0)
+    
+    print("The config file is secure.")
+    sys.exit(0)
+
+
+def main():
+    check_ssh_binary()
+    check_ssh_service()
+    check_config_file()
+
+
+if __name__ == "__main__":
+    main()
+

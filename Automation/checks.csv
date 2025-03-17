@@ -1,0 +1,13 @@
+Infrastructure Setup Parameters
+API IP,192.168.2.249
+API Port,5000
+Repo IP,192.168.2.249
+
+Use-Shorthand (Y/N),Y
+
+Check Parameters
+target-agent,score-weight,target-script,run-method,arg-list,display-name
+agent1,10,ssh-config,python3,"",a1-ssh-config
+agent2,10,ssh-config,python3,"",a2-ssh-config
+agent1,20,tls,python3,"",a1-tls
+agent2,20,tls,python3,"",a2-tls

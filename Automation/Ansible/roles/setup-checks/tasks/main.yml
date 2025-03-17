@@ -1,0 +1,4 @@
+---
+  - name: Run setup checks
+    shell:
+      "{{ target_project_directory }}/dynamicbeat setup checks {{ target_project_directory }}/checks"

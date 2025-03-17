@@ -1,0 +1,25 @@
+---
+  # - name: Inspect Docker Swarm Config
+  #   delegate_to: "{{ swarm_manager_ip }}"
+  #   docker_swarm:
+  #     state: inspect
+  #   register: swarm_info
+
+  - name: Get Docker Swarm Join Token
+    delegate_to: "{{ swarm_manager_ip }}"
+    docker_swarm:
+      state: present
+    register: swarm_info
+
+  - name: Debug Swarm Join Tokens
+    debug:
+      msg: "{{ swarm_info.swarm_facts.JoinTokens.Worker }}"
+
+
+
+  - name: Init Docker Swarm Worker
+    docker_swarm:
+      state: join
+      advertise_addr: "{{ ansible_ssh_host }}"
+      join_token: "{{ swarm_info.swarm_facts.JoinTokens.Worker }}"
+      remote_addrs: ["{{ swarm_manager_ip }}:2377"]

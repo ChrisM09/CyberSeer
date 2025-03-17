@@ -1,0 +1,12 @@
+---
+  - name: Copy the dynamicbeat kill script
+    copy:
+      src: files/stop-dynamicbeat.sh
+      dest: "{{ target_project_directory }}/"
+      mode: 0755
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+
+  - name: Stop existing score checks
+    shell:
+      "{{ target_project_directory}}/stop-dynamicbeat.sh"

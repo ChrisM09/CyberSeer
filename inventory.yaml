@@ -1,0 +1,37 @@
+all:
+  children:
+    scoring_engine_infra:
+      children:
+        swarm_manager:
+        swarm_worker:
+
+    swarm_manager:
+      hosts:
+        192.168.1.95:
+
+    swarm_worker:
+      hosts:
+        192.168.2.249:
+
+    agents:
+      hosts:
+        192.168.1.87:
+        192.168.1.98:
+      
+
+      vars:
+        mqtt_broker: 192.168.2.249 # Worker
+        dns_server: 192.168.2.249 # Worker
+
+  vars: 
+    team_API_address: 192.168.2.249 # Worker
+    team_API_port: 5000 
+
+    ansible_user: blackteam
+    ansible_ssh_private_key_file: /home/user/.ssh/blackteam
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+    ansible_python_interpreter: /usr/bin/python3
+
+    target_home_directory: /home/blackteam/
+    target_project_directory: /home/blackteam/
+

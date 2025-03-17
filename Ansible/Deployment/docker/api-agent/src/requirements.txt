@@ -1,0 +1,5 @@
+flake8
+flask
+requests
+ping3
+paho-mqtt

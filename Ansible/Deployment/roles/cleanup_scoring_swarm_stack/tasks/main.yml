@@ -1,0 +1,5 @@
+---
+  - name: Cleanup Scoring Stack
+    docker_stack:
+      name: scorestack
+      state: absent

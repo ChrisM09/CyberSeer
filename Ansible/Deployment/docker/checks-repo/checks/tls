@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+
+# Script that will check the TLS configuration of an Nginx server on this machine.
+import os
+import re
+import requests
+import stat
+import subprocess
+import sys
+
+# Disables SSL certificate warning messages.
+requests.packages.urllib3.disable_warnings()
+
+nginx_run_command = "" # Will populate in the is_nginx_installed function
+problematic_servers = []
+
+
+def is_nginx_installed():
+    global nginx_run_command
+    # Check if the nginx package is installed anywhere on the system.
+    output = subprocess.run(["which", "nginx"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if output.returncode != 0:
+        print("Nginx is not installed on this system.")
+        sys.exit(1)
+        
+    # Keep the path of the nginx command for later use.
+    nginx_run_command = output.stdout.decode().strip()
+    
+def is_nginx_running():
+    """
+        Check if the nginx service is running on the system.
+    """
+    
+    output = subprocess.run(["systemctl", "is-active", "--quiet", "nginx"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if output.returncode != 0:
+        print("Nginx is not running on this system.")
+        sys.exit(1)
+
+
+def is_server_redirect_from_http_to_https(server_config):
+    """
+        Checks if the server configuration line that was given is a redirection block to another
+        server that has https enabled.
+    """
+    
+    # Need to look for the "return 301 https://" tagline.
+    return "return 301 https://" in server_config
+
+
+# Function to check file permissions
+def check_ssl_key_permissions(filepath):
+    if not os.path.exists(filepath):
+        return False, f"{filepath} does not exist."
+    
+    st = os.stat(filepath)
+    permissions = stat.S_IMODE(st.st_mode)
+    
+    if permissions != 0o600:
+        print(f"{filepath} has incorrect permissions: {oct(permissions)} (expected: 600)")
+        sys.exit(1)
+
+
+
+def full_nginx_configuration_checker(server_config):
+    global nginx_run_command
+    
+    """
+        Completely check the TLS setup of a server that isn't a redirect block
+        in the case of redirecting HTTP traffic to HTTPS traffic. That's handled elsewhere.
+    """
+    
+    """
+    Important checks
+        - Check if port 443 is enabled in the configuration file.
+            - Run nginx -t to check for syntax errors.
+        - Check if there are ssl keys and certificates in the configuration file.
+            - Run another check for the permmisions of the keys and certificates.
+            - Run nging -t to check for syntax errors.
+        - Check if the ssl_protocols are set to TLSv1.2 or higher.
+            - Run nginx -t to check for syntax errors.
+    """
+    
+    """
+        curl localhost
+        curl <argument passed to script>
+    """
+    
+    
+    # Check if port 443 is enabled in the configuration file.
+    if "listen 443" not in server_config:
+        print("Port 443 is not enabled in the nginx configuration file.")
+        sys.exit(1)
+    
+    nginx_nginx_config_tester()
+    
+    
+    # Check if there are ssl keys and certificates in the configuration file.
+    if "ssl_certificate" not in server_config or "ssl_certificate_key" not in server_config:
+        print("SSL keys and certificates are not configured in the nginx configuration file.")
+        sys.exit(1)
+    
+    # Find the path for the ssl_certificate and ssl_certificate_key on the filesystem.
+    # Now, check the permissions of said files and make sure they comply with the
+    # 600 permissions.
+    
+    ssl_certificate_key_match = re.search(r'ssl_certificate_key\s+([^\s;]+);', server_config)
+    if ssl_certificate_key_match:
+        ssl_certificate_key = ssl_certificate_key_match.group(1)
+        
+    # Now, check the permissions on the system for these
+    check_ssl_key_permissions(ssl_certificate_key)
+    
+    
+    
+    nginx_nginx_config_tester()
+    
+    if "ssl_protocols" not in server_config:
+        print("ssl_protocols not defined.")
+        sys.exit(1)
+    
+    # Check if the ssl_protocols are set to TLSv1.2 or higher.
+    if "ssl_protocols" in server_config:
+        protocols = re.findall(r'ssl_protocols\s+(.*?);', server_config)
+        
+        # Change the entry into a list of ciphers if there's something there.
+        list_of_protocols = protocols[0].split(" ")
+        bad_protocols = []
+        for protocol in list_of_protocols:
+            
+            # Check if it matches any of the bad ones.
+            if protocol in {"TLSv1", "TLSv1.1"}:
+                bad_protocols.append(protocol)
+
+        if len(bad_protocols) > 0:
+            print(f"Insecure TLS version support detected: {bad_protocols}")
+            sys.exit(1)
+        
+    nginx_nginx_config_tester()
+
+
+
+# Function that will check the Ngnix configuration file for the TLS configuration.
+def nginx_configuration_checker():
+    global nginx_run_command
+
+    nginx_nginx_config_tester()
+
+
+    # Gather the output of the nginx -T command for the configuration file
+    # regardless of where it is on the system.
+    # nginx_conf = subprocess.run(["nginx", "-T", "|", "awk", "'/server {/,/}/'"], stdout=subprocess.PIPE)
+    
+    # Original command is nginx -T 2>/dev/null | awk '/server {/,/}/'
+    
+    cmd1 = [nginx_run_command, "-T"]
+    cmd2 = ["awk", "/server {/,/}/"]
+    
+    part1 = subprocess.Popen(cmd1, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    part2 = subprocess.Popen(cmd2, stdin=part1.stdout, stdout=subprocess.PIPE)
+    part1.stdout.close()
+    output = part2.communicate()[0]
+    nginx_conf = output.decode()
+    
+    # Remove all the comments from the configuration file.
+    nginx_conf = re.sub(r'#.*', '', nginx_conf)
+    
+    # Now here, we will have a list of the configurations of
+    # all the servers that Nginx is using. 
+    # Break apart the server blocks to have a list of them and
+    # individually check them.
+    server_blocks = re.findall(r'(?ms)^\s*server\s*{.*?^\s*}', nginx_conf.strip())
+    
+    
+    # First, we will try to see if it's a redirection block
+    for server_config in server_blocks:
+        if(is_server_redirect_from_http_to_https(server_config)):
+            # Parse out the target from the line with the return 301 https:<target> line
+            # Regular expression to match the full URI
+            pattern = r'return 301 (https://[^\s;]+)'
+
+
+            # Use re.search to find the match
+            match = re.search(pattern, server_config).group(1)
+                
+            # Now, we should have a full URI of the target.
+            # Let's go check this URI and make sure that it has TLS enabled from the network perspective.
+            if nginx_runtime_redirect_server_check(match): 
+                # This redirects to a server with TLS enabled... don't need to worry about it anymore.
+                pass
+            else:
+                # This redirects to a server without TLS enabled, send them a message to fix it.
+                print(f"HTTP server redirection leads to an insecure target: {match}")
+                # This is a problem child of the current nginx server.
+                problematic_servers.append(match)
+                
+        else:
+            # This isn't a redirection server. Perform a full check on this server.
+            full_nginx_configuration_checker(server_config)
+        
+
+    if (len(problematic_servers) > 0):
+        # There were problematic redirect servers. Let them know which ones
+        # and then fail.
+        sys.exit(1)
+    
+def nginx_nginx_config_tester():
+    """
+        Check the machine's nginx config using the nginx -t option to check for syntax errors.
+    """
+    output = subprocess.run([nginx_run_command, "-t"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if output.returncode != 0:
+        print(f"There is an error in the nginx configuration file from the previous fix: {output.stdout.decode()}, {output.stderr.decode()}")
+        sys.exit(1)
+    
+
+def nginx_runtime_redirect_server_check(target):
+    """
+        Called when a redirect server is found.
+        Checks if the target server has TLS enabled.
+    """
+    
+    # If $host, then the full TLS checker will check 
+    # the server on the machine anyways.
+    if("$host" in target or "$request_uri" in target):
+        # Right now, if there is $host in it, then it will redirect back to localhost.
+        # Meaning, that the target server will be checked regardless in the main logic
+        # of this code.
+        
+        # However, with the request_uri, we're not going to hook into the
+        # system network traffic.
+        return True
+    
+    # Basic HTTPS check without certificate verification.
+    response = requests.get(f"https://{target}", verify=False)
+    if response.status_code != 200:
+        print(f"HTTPS unexpected status code: {response.status_code}")
+        return False
+    
+    return True
+    
+    
+def localhost_80_check():
+    response = requests.get("http://localhost", allow_redirects=False)
+    if response.status_code != 200 and response.status_code != 301:
+        print(f"HTTP unexpected status code: {response.status_code}")
+        sys.exit(1)
+    
+def localhost_443_check():
+    # Basic HTTPS check without certificate verification.
+    response = requests.get("https://localhost", verify=False)
+    if response.status_code != 200:
+        print(f"HTTPS unexpected status code: {response.status_code}")
+        sys.exit(1)
+    
+
+def nginx_runtime_checks():
+    """
+        Network-based checks for the Nginx server checking TLS.
+    """
+    
+    """
+        Checks to run (without certificate validation):
+            - Basic HTTPS check and expect a 200 OK response.
+            - Check for a redirect from HTTP to HTTPS. (80 to 443).
+    """
+    
+    localhost_443_check()
+    
+    # Check for redirect from HTTP to HTTPS
+    response = requests.get("http://localhost", allow_redirects=False)
+    if response.status_code != 301:
+        print("Redirect from HTTP to HTTPS check failed.")
+        sys.exit(1)
+    
+    print("All TLS checks for Nginx servers passed.")
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    is_nginx_installed()
+    is_nginx_running()
+    localhost_80_check()
+    nginx_configuration_checker()
+    nginx_runtime_checks()

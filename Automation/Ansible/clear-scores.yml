@@ -1,0 +1,6 @@
+- name: Clear scores
+  become: true
+  hosts: swarm_manager
+  roles:
+    - stop-dynamicbeat
+    - clear-scores

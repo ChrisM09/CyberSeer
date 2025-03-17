@@ -1,0 +1,35 @@
+---
+  - name: Update Package Manager
+    apt:
+      upgrade: full
+      update_cache: yes
+      autoremove: true
+
+  - name: Add the deadsnakes PPA
+    ansible.builtin.apt_repository:
+      repo: ppa:deadsnakes/ppa
+      state: present
+
+  - name: Ensure python and pip are installed
+    ansible.builtin.apt:
+      name:
+        - python3
+        - python3-pip
+
+  # https://zomro.com/blog/faq/299-kak-ustanovit-python-310-na-ubuntu-2004
+  - name: Install python3.10 and pipenv
+    ansible.builtin.apt:
+      name:
+        - python3.10
+        - python3.10-venv
+        - python3.10-dev
+        - python3.10-distutils
+
+  - name: Install pipenv from pip
+    ansible.builtin.shell: |
+      pip3 install pipenv
+  
+  - name: Copy Pipfile
+    ansible.builtin.copy:
+      src: Pipfile
+      dest: "{{ target_project_directory }}/Pipfile"

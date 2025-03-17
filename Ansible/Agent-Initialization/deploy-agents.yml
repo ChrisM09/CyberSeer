@@ -1,0 +1,6 @@
+- name: Deploy and configure agents
+  hosts: agents
+  become: true
+  roles:
+    - setup-pip-env
+    - deploy-agent-service

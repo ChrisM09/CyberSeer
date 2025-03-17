@@ -1,0 +1,5 @@
+- become: yes
+  hosts: swarm_manager
+
+  roles:
+  - cleanup_scoring_swarm_stack

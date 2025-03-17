@@ -1,0 +1,8 @@
+- become: true
+  hosts: scoring_engine_infra
+
+  roles:
+  - build_checks_repo_image
+  - build_dns_server_image
+  - build_mqtt_server_image
+  - build_api_agent_image

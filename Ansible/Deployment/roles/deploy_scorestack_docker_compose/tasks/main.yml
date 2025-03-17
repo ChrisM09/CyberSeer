@@ -1,0 +1,180 @@
+---
+  - name: Install unzip
+    ansible.builtin.apt:
+      name: unzip
+      state: present
+    become: true
+
+  - name: Ensure git, wget, and unzip are installed
+    ansible.builtin.package:
+      name:
+        - git
+        - wget
+        - unzip
+      state: present
+    become: true
+
+  - name: Cleanup Dynamicbeat directory
+    ansible.builtin.file:
+      path: "{{ target_project_directory }}/dynamicbeat"
+      state: absent
+    become: true
+
+  - name: Cleanup Kibana zip file
+    ansible.builtin.file:
+      path: "{{ target_project_directory }}/kibana-plugin-v0.8.2.zip"
+      state: absent
+    become: true
+
+  - name: Cleanup Kibana plugin directory
+    ansible.builtin.file:
+      path: "{{ target_project_directory }}/scorestack/kibana-plugin"
+      state: absent
+    become: true
+
+  - name: Cleanup Scorestack directory
+    ansible.builtin.file:
+      path: "{{ target_project_directory }}/scorestack"
+      state: absent
+    become: true
+
+  # - name: Debug targetHomeDirectory variable
+  #   ansible.builtin.debug:
+  #     var: "{{ target_home_directory }}"
+
+  - name: Clone Scorestack repository
+    shell: |
+      git clone https://github.com/scorestack/scorestack "{{ target_project_directory }}/scorestack"
+    args:
+      executable: /bin/bash
+      chdir: "{{ target_project_directory }}/"
+    register: clone_output
+    become: true
+
+  - name: Debug clone output
+    ansible.builtin.debug:
+      var: clone_output
+
+  - name: Copy custom dynamicbeat executable to machine
+    ansible.builtin.copy:
+      src: scorestack/dynamicbeat
+      dest: "{{ target_project_directory }}/dynamicbeat"
+
+  # - name: Copy dynamicbeat.yml file to machine
+  #   ansible.builtin.copy:
+  #     src: scorestack/dynamicbeat.yml
+  #     dest: "{{ target_project_directory }}//dynamicbeat.yml"
+
+  - name: Copy dynamicbeat.yml file to machine
+    ansible.builtin.template:
+      src: dynamicbeat.yml.j2
+      dest: "{{ target_project_directory }}/dynamicbeat.yml"
+
+  - name: Copy custom http.go file to scorestack setup
+    ansible.builtin.copy:
+      src: scorestack/http.go
+      dest: "{{ target_project_directory }}/scorestack/dynamicbeat/pkg/checktypes/http/http.go"
+
+  - name: Copy fixed setup script to machine
+    ansible.builtin.copy:
+      src: scorestack/setup.sh
+      dest: "{{ target_project_directory }}/scorestack/deployment/small/docker/setup.sh"
+  
+  - name: Copy fixed Docker Compose to machine
+    ansible.builtin.copy:
+      src: scorestack/docker-compose.yml
+      dest: "{{ target_project_directory }}/scorestack/deployment/small/docker/docker-compose.yml"
+
+  - name: Download Docker 27.2.0 binary to mount inside of setup container
+    shell: |
+      wget https://download.docker.com/linux/static/stable/x86_64/docker-27.2.0.tgz
+    args:
+      executable: /bin/bash
+      chdir: "{{ target_project_directory }}/scorestack/deployment/small/docker/"
+    become: true
+
+  - name: Unzip Docker binary (moves into its own Docker folder)
+    shell: |
+      tar xzvf docker-27.2.0.tgz
+    args:
+      chdir: "{{ target_project_directory }}/scorestack/deployment/small/docker/"
+    become: true
+
+  - name: Download Kibana Plugin zip
+    shell: |
+      wget https://github.com/scorestack/scorestack/releases/download/v0.8.2/kibana-plugin-v0.8.2.zip -P "{{ target_project_directory }}/"
+    args:
+      executable: /bin/bash
+    register: download_kibana_output
+    become: true
+
+  - name: Debug download kibana plugin output
+    ansible.builtin.debug:
+      var: download_kibana_output
+
+  - name: Verify Kibana Plugin zip file exists
+    ansible.builtin.stat:
+      path: "{{ target_project_directory }}/kibana-plugin-v0.8.2.zip"
+    register: kibana_zip_stat
+
+  - name: Debug Kibana Plugin zip file stat
+    ansible.builtin.debug:
+      var: kibana_zip_stat
+
+  - name: Fail if Kibana Plugin zip file does not exist
+    ansible.builtin.fail:
+      msg: "Kibana Plugin zip file was not downloaded successfully."
+    when: not kibana_zip_stat.stat.exists
+
+  - name: Unzip Kibana Plugin
+    shell: |
+      unzip "{{ target_project_directory }}/kibana-plugin-v0.8.2.zip" -d "{{ target_project_directory }}/scorestack/kibana-plugin"
+    args:
+      executable: /bin/bash
+    register: unzip_kibana_output
+    become: true
+
+  - name: Debug unzip kibana plugin output
+    ansible.builtin.debug:
+      var: unzip_kibana_output
+
+  - name: Remove Kibana Plugin zip
+    ansible.builtin.file:
+      path: "{{ target_project_directory }}/kibana-plugin-v0.8.2.zip"
+      state: absent
+    become: true
+
+  - name: Setup Scorestack
+    shell: | 
+      sysctl -w net.ipv4.ping_group_range="0    2147483647"
+      sysctl -w vm.max_map_count=262144
+      docker compose down
+      docker compose up -d
+    args: 
+      chdir: "{{ target_project_directory }}/scorestack/deployment/small/docker/"
+    become: true
+
+    # If this check fails, just try to rerun the docker compose up command
+    # Obviously make sure that kibana-plugin installed successfully within
+    # the scorestack directory. This should be where it looks first.
+  - name: Wait for Kibana to be accessible with self-signed certificates (max 6 minutes)
+    ansible.builtin.uri:
+      url: "https://localhost:5601/status"
+      return_content: yes
+      validate_certs: no  # Disable certificate validation for self-signed certificates
+    register: kibana_status
+    until: kibana_status.status == 200
+    retries: 60
+    delay: 10
+  
+  - name: Change file ownership, group and permissions
+    ansible.builtin.file:
+      path: "{{ target_project_directory }}/dynamicbeat"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0744'
+    become: true
+
+  - name: Initialize Scoreboard
+    shell: |
+      "{{ target_project_directory }}/dynamicbeat" setup

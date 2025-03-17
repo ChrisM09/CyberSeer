@@ -1,0 +1,9 @@
+- name: Upload the checks to the main scoring engine
+  hosts: swarm_manager
+  become: true
+  roles:
+    - remove-old-checks
+    - upload-checks
+    - stop-dynamicbeat
+    - setup-checks
+    - start-dynamicbeat

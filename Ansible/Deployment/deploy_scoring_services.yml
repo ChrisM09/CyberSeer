@@ -1,0 +1,6 @@
+- become: yes
+  hosts: swarm_manager
+
+  roles:
+  - deploy_scorestack_docker_compose
+  - deploy_scoring_swarm_stack
